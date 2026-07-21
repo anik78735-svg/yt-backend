@@ -1,0 +1,68 @@
+const { google } = require('googleapis');
+
+const getOAuthClient = () => {
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI
+  );
+};
+
+// Exchanges the authorization code (from frontend Google consent screen) for tokens
+const exchangeCodeForTokens = async (code) => {
+  const oauth2Client = getOAuthClient();
+  const { tokens } = await oauth2Client.getToken(code);
+  return tokens; // { access_token, refresh_token, expiry_date, ... }
+};
+
+// Refreshes access token using stored refresh token
+const refreshAccessToken = async (refreshToken) => {
+  const oauth2Client = getOAuthClient();
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  const { credentials } = await oauth2Client.refreshAccessToken();
+  return credentials;
+};
+
+const getChannelInfo = async (accessToken) => {
+  const oauth2Client = getOAuthClient();
+  oauth2Client.setCredentials({ access_token: accessToken });
+  const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+  const res = await youtube.channels.list({ part: 'snippet,statistics', mine: true });
+  return res.data.items && res.data.items[0];
+};
+
+// Uploads a readable stream to the connected YouTube channel
+const uploadVideoToYouTube = async ({ accessToken, refreshToken, fileStream, title, description, tags, categoryId, privacyStatus, publishAt, madeForKids }) => {
+  const oauth2Client = getOAuthClient();
+  oauth2Client.setCredentials({ access_token: accessToken, refresh_token: refreshToken });
+  const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+
+  const status = { privacyStatus: privacyStatus || 'private', selfDeclaredMadeForKids: !!madeForKids };
+  if (publishAt) {
+    status.privacyStatus = 'private';
+    status.publishAt = new Date(publishAt).toISOString();
+  }
+
+  const res = await youtube.videos.insert({
+    part: 'snippet,status',
+    requestBody: {
+      snippet: { title, description, tags, categoryId: categoryId || '22' },
+      status
+    },
+    media: { body: fileStream }
+  });
+
+  return res.data; // includes id
+};
+
+const setThumbnail = async ({ accessToken, refreshToken, videoId, thumbnailStream }) => {
+  const oauth2Client = getOAuthClient();
+  oauth2Client.setCredentials({ access_token: accessToken, refresh_token: refreshToken });
+  const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+  return youtube.thumbnails.set({ videoId, media: { body: thumbnailStream } });
+};
+
+module.exports = {
+  getOAuthClient, exchangeCodeForTokens, refreshAccessToken,
+  getChannelInfo, uploadVideoToYouTube, setThumbnail
+};
