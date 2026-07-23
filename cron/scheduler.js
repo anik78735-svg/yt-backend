@@ -3,6 +3,7 @@ const axios = require('axios');
 const Video = require('../models/Video');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const { sendPushToUser } = require('../utils/push');
 const { refreshAccessToken, uploadVideoToYouTube, setThumbnail } = require('../utils/youtube');
 const { getDriveFileStream } = require('../utils/googleDrive');
 
@@ -53,7 +54,7 @@ const processVideo = async (video) => {
       description: video.description,
       tags: video.tags,
       categoryId: video.category,
-      privacyStatus: 'public',
+      privacyStatus: video.privacyStatus || 'public',
       madeForKids: video.audience === 'made_for_kids'
     });
 
@@ -62,11 +63,17 @@ const processVideo = async (video) => {
     video.youtubeUrl = `https://youtube.com/watch?v=${result.id}`;
     await video.save();
 
+    const privacyLabel = video.privacyStatus === 'public' ? 'public' : video.privacyStatus;
     await Notification.create({
       user: user._id,
       type: 'upload_completed',
       title: 'Upload Completed ✅',
-      message: `"${video.title}" is now live on YouTube.`
+      message: `"${video.title}" is now live on YouTube (${privacyLabel}).`
+    });
+    await sendPushToUser(user, {
+      title: 'Your video is live! 🎉',
+      body: `"${video.title}" just went ${privacyLabel} on YouTube.`,
+      data: { type: 'upload_completed', videoId: video._id.toString(), youtubeUrl: video.youtubeUrl }
     });
   } catch (err) {
     console.error(`Upload failed for video ${video._id}:`, err.message);
@@ -79,6 +86,11 @@ const processVideo = async (video) => {
       type: 'upload_failed',
       title: 'Upload Failed ❌',
       message: `"${video.title}" failed to upload: ${err.message}`
+    });
+    await sendPushToUser(user, {
+      title: 'Upload failed ❌',
+      body: `"${video.title}" couldn't be uploaded. Tap to see why.`,
+      data: { type: 'upload_failed', videoId: video._id.toString() }
     });
   }
 };

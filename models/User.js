@@ -35,6 +35,8 @@ const UserSchema = new mongoose.Schema({
 
   storageUsedBytes: { type: Number, default: 0 },
 
+  fcmTokens: [{ type: String }],
+
   youtubeChannel: { type: YouTubeChannelSchema, default: null },
 
   subscription: {

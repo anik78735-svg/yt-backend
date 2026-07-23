@@ -9,6 +9,7 @@ const VideoSchema = new mongoose.Schema({
   category: { type: String, default: '22' }, // YouTube category id
   playlist: { type: String, default: '' },
   audience: { type: String, enum: ['made_for_kids', 'not_for_kids'], default: 'not_for_kids' },
+  privacyStatus: { type: String, enum: ['public', 'unlisted', 'private'], default: 'public' },
 
   thumbnailUrl: { type: String, default: '' },
 

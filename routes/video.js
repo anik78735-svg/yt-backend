@@ -55,7 +55,7 @@ router.post('/upload', protect, upload.fields([{ name: 'video', maxCount: 1 }, {
       return res.status(400).json({ success: false, message: 'Video file is required' });
     }
 
-    const { title, description, tags, category, playlist, audience, scheduledAt } = req.body;
+    const { title, description, tags, category, playlist, audience, privacyStatus, scheduledAt } = req.body;
     if (!title) return res.status(400).json({ success: false, message: 'Title is required' });
     if (!user.youtubeChannel) {
       return res.status(400).json({ success: false, message: 'Please connect a YouTube channel first' });
@@ -86,6 +86,7 @@ router.post('/upload', protect, upload.fields([{ name: 'video', maxCount: 1 }, {
       category: category || '22',
       playlist: playlist || '',
       audience: audience || 'not_for_kids',
+      privacyStatus: ['public', 'unlisted', 'private'].includes(privacyStatus) ? privacyStatus : 'public',
       thumbnailUrl,
       storageProvider: stored.storageProvider,
       storageFileId: stored.storageFileId,

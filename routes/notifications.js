@@ -28,4 +28,18 @@ router.patch('/read-all', protect, async (req, res) => {
   res.json({ success: true, message: 'All notifications marked as read' });
 });
 
+// @route POST /api/notifications/register-device  { fcmToken }
+// Called by the Flutter app after login so the backend can push real
+// phone notifications (upload completed, payment approved, etc.)
+router.post('/register-device', protect, async (req, res) => {
+  const { fcmToken } = req.body;
+  if (!fcmToken) return res.status(400).json({ success: false, message: 'fcmToken is required' });
+
+  if (!req.user.fcmTokens.includes(fcmToken)) {
+    req.user.fcmTokens.push(fcmToken);
+    await req.user.save();
+  }
+  res.json({ success: true, message: 'Device registered for push notifications' });
+});
+
 module.exports = router;

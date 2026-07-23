@@ -6,6 +6,7 @@ const Video = require('../models/Video');
 const Transaction = require('../models/Transaction');
 const PaymentSettings = require('../models/PaymentSettings');
 const Notification = require('../models/Notification');
+const { sendPushToUser } = require('../utils/push');
 const { uploadBufferToCloudinary, account1 } = require('../utils/cloudinary');
 
 const router = express.Router();
@@ -81,6 +82,11 @@ router.patch('/payments/:id/approve', async (req, res) => {
       title: 'Payment Approved 🎉',
       message: `Your payment of ₹${transaction.amountINR} was approved. ${transaction.diamondPackage} diamonds added to your wallet.`
     });
+    await sendPushToUser(user, {
+      title: 'Payment approved 💎',
+      body: `${transaction.diamondPackage} diamonds added to your wallet.`,
+      data: { type: 'payment_approved' }
+    });
 
     res.json({ success: true, message: 'Payment approved and diamonds credited', transaction });
   } catch (err) {
@@ -109,6 +115,14 @@ router.patch('/payments/:id/reject', async (req, res) => {
       title: 'Payment Rejected',
       message: `Your payment request of ₹${transaction.amountINR} was rejected. Reason: ${transaction.adminNote}`
     });
+    const rejectedUser = await User.findById(transaction.user);
+    if (rejectedUser) {
+      await sendPushToUser(rejectedUser, {
+        title: 'Payment rejected',
+        body: transaction.adminNote,
+        data: { type: 'payment_rejected' }
+      });
+    }
 
     res.json({ success: true, message: 'Payment rejected', transaction });
   } catch (err) {
